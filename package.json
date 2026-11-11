@@ -1,0 +1,32 @@
+{
+  "name": "garbage-collector-beautiful",
+  "version": "2.0.0",
+  "description": "Garbage Collector - customer and manager waste request system",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.garbagecollector.app",
+    "productName": "Garbage Collector",
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "server.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  }
+}

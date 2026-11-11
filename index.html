@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Garbage Collector</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700;800&display=swap');
+
+:root{
+  --green:#16845b; --green2:#0e6b49; --blue:#2878d8; --blue2:#1f63b5;
+  --ink:#18342a; --muted:#6d7e77; --cream:#f5f8f3; --card:rgba(255,255,255,.88);
+  --line:#dfeae4; --danger:#d84b4b; --shadow:0 20px 60px rgba(29,68,52,.10);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,Arial,sans-serif;color:var(--ink);background:
+ radial-gradient(circle at 10% 10%,rgba(39,150,105,.10),transparent 28%),
+ radial-gradient(circle at 90% 85%,rgba(43,120,216,.08),transparent 30%),
+ #f7faf7;min-height:100vh}
+body:before{content:"♻";position:fixed;z-index:-1;right:-90px;top:80px;font-size:420px;font-weight:800;color:rgba(22,132,91,.045);transform:rotate(-12deg);pointer-events:none}
+body:after{content:"♻";position:fixed;z-index:-1;left:-130px;bottom:-150px;font-size:480px;color:rgba(40,120,216,.035);transform:rotate(15deg);pointer-events:none}
+
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.app{min-height:100vh}
+.topbar{height:76px;background:rgba(255,255,255,.78);backdrop-filter:blur(14px);border-bottom:1px solid rgba(223,234,228,.8);display:flex;align-items:center;justify-content:space-between;padding:0 34px;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:12px;font-family:Poppins;font-weight:800;font-size:21px;letter-spacing:-.3px}
+.logo{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#1a9c6a,#0c704b);color:#fff;font-size:25px;box-shadow:0 9px 22px rgba(22,132,91,.20)}
+.badge{font-size:11px;color:#16845b;background:#e8f6ef;border:1px solid #d2eddf;padding:5px 9px;border-radius:99px;font-weight:700}
+.shell{max-width:1180px;margin:0 auto;padding:42px 24px 70px}
+.hero{text-align:center;margin:20px auto 36px;max-width:850px}
+.hero h1{font-family:Poppins;font-size:48px;line-height:1.05;margin:0 0 13px;letter-spacing:-1.5px}
+.hero h1 span{color:var(--green)}
+.hero p{color:var(--muted);font-size:16px;line-height:1.7;margin:0 auto;max-width:720px}
+.panel{background:var(--card);border:1px solid rgba(223,234,228,.95);box-shadow:var(--shadow);border-radius:28px;padding:30px}
+.choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.choice{border:1px solid var(--line);background:#fff;border-radius:22px;padding:27px;text-align:left;transition:.2s;min-height:160px}
+.choice:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(30,80,58,.10)}
+.choice.active{border-color:#2878d8;box-shadow:0 0 0 3px rgba(40,120,216,.10),0 15px 30px rgba(40,120,216,.10)}
+.choice .ico{font-size:31px;margin-bottom:15px}
+.choice h3{margin:0 0 8px;font-family:Poppins;font-size:18px}
+.choice p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+.choice .tap{display:inline-block;margin-top:17px;font-size:12px;color:var(--blue);font-weight:800}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 10px 35px rgba(25,70,50,.06)}
+.form{max-width:580px;margin:0 auto}
+.form h2,.section-title{font-family:Poppins;margin:0 0 7px;font-size:27px}
+.sub{color:var(--muted);margin:0 0 22px;font-size:13px;line-height:1.6}
+label{display:block;font-size:12px;font-weight:800;margin:15px 0 7px;color:#38544a}
+input,textarea,select{width:100%;padding:13px 14px;border:1px solid #dbe6e1;border-radius:13px;outline:none;background:#fbfdfc;color:var(--ink);transition:.18s}
+input:focus,textarea:focus,select:focus{border-color:#6fa9e9;box-shadow:0 0 0 4px rgba(40,120,216,.09);background:#fff}
+textarea{min-height:100px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.btn{border:0;border-radius:13px;padding:12px 17px;font-weight:800;transition:.18s}
+.btn-primary{background:linear-gradient(135deg,var(--green),#0d7450);color:#fff;box-shadow:0 9px 18px rgba(22,132,91,.17)}
+.btn-blue{background:linear-gradient(135deg,var(--blue),#1f63b5);color:#fff;box-shadow:0 9px 18px rgba(40,120,216,.16)}
+.btn-outline{background:#fff;border:1px solid #d9e5df;color:#35534a}
+.btn.active,.btn:active{transform:scale(.98);box-shadow:0 0 0 3px rgba(40,120,216,.18);background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-danger{background:#fff1f1;color:#b93f3f;border:1px solid #ffd5d5}
+.hidden{display:none!important}
+.screen{animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.notice{padding:12px 14px;border-radius:13px;background:#f2f8ff;border:1px solid #dcecff;color:#376a9c;font-size:12px;margin-bottom:18px}
+.error{padding:12px 14px;border-radius:13px;background:#fff1f1;border:1px solid #ffd7d7;color:#a83d3d;font-size:12px;margin-top:12px}
+.success{padding:12px 14px;border-radius:13px;background:#effaf4;border:1px solid #d5f0df;color:#25734e;font-size:12px;margin-top:12px}
+.dashboard{display:grid;grid-template-columns:270px 1fr;gap:20px}
+.sidebar{background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:24px;padding:17px;height:max-content;position:sticky;top:95px}
+.userbox{padding:15px;background:#f4f8f5;border-radius:17px;margin-bottom:13px}
+.userbox b{display:block;font-family:Poppins}.userbox small{color:var(--muted)}
+.navbtn{width:100%;text-align:left;border:0;background:transparent;padding:12px 13px;border-radius:12px;font-weight:700;color:#5a6d65;margin:2px 0}
+.navbtn:hover{background:#f3f7f5;color:var(--green)}
+.navbtn.active{background:#eaf5ff;color:var(--blue)}
+.content{min-width:0}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:19px}
+.stat b{font-size:28px;font-family:Poppins}.stat span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.requests{display:grid;gap:14px}
+.request{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px}
+.request-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.request h3{font-family:Poppins;margin:0 0 6px;font-size:17px}
+.request p{color:#62756d;font-size:13px;line-height:1.6;margin:7px 0}
+.status{display:inline-flex;align-items:center;border-radius:99px;padding:6px 10px;font-size:11px;font-weight:800;background:#eef7f2;color:#22734e}
+.status.paid{background:#edf7ff;color:#276fae}
+.status.pending{background:#fff7e8;color:#9a6a16}
+.meta{display:flex;gap:10px;flex-wrap:wrap;color:#687a73;font-size:11px;margin:10px 0}
+.payment-box{background:linear-gradient(135deg,#f1f8ff,#f3faf6);border:1px solid #dcebe7;border-radius:18px;padding:18px;margin-top:16px}
+.payment-box h4{margin:0 0 6px;font-family:Poppins}
+.payment-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.pay-option{border:1px solid #d7e4df;border-radius:13px;padding:12px;background:#fff;font-size:12px;font-weight:800;text-align:center}
+.pay-option.selected{border-color:var(--blue);box-shadow:0 0 0 3px rgba(40,120,216,.09);color:var(--blue)}
+.photo-block{margin:12px 0 4px}
+.photo-title{font-size:11px;font-weight:800;color:#38544a;margin-bottom:7px;text-transform:uppercase;letter-spacing:.4px}
+.photos{display:flex;gap:10px;flex-wrap:wrap}
+.photos img{width:96px;height:96px;object-fit:cover;border-radius:14px;border:1px solid var(--line);cursor:zoom-in;transition:.18s;background:#f1f5f3}
+.photos img:hover{transform:scale(1.04);box-shadow:0 8px 20px rgba(30,80,58,.15)}
+.nophoto{font-size:12px;color:#8a9993;margin:10px 0 2px}
+.upload-box{margin-top:14px;padding:16px;border:1.5px dashed #9cc3ea;background:#f5faff;border-radius:16px}
+.upload-box b{font-family:Poppins;font-size:14px}
+.upload-box .sub{margin:6px 0 12px;font-size:12px}
+.upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.upload-row input[type=file]{flex:1;min-width:200px;background:#fff}
+.lightbox{position:fixed;inset:0;z-index:60;background:rgba(10,25,20,.82);display:grid;place-items:center;cursor:zoom-out;padding:24px}
+.lightbox img{max-width:92vw;max-height:90vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.empty{text-align:center;padding:45px 20px;color:var(--muted)}
+.footer{text-align:center;color:#8a9993;font-size:11px;margin-top:30px}
+@media(max-width:900px){.choice-grid{grid-template-columns:1fr}.dashboard{grid-template-columns:1fr}.sidebar{position:static}.statgrid{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="brand"><div class="logo">♻</div> Garbage Collector <span class="badge">SMART WASTE</span></div>
+  <button id="logoutTop" class="btn btn-outline hidden">Logout</button>
+</header>
+
+<main class="shell">
+
+<section id="home" class="screen">
+  <div class="hero">
+    <h1>Cleaner places, <span>smarter service.</span></h1>
+    <p>A modern garbage complaint and collection platform for customers and managers — designed with a soft eco background, clear actions and simple payment tracking.</p>
+  </div>
+  <div class="panel">
+    <div class="choice-grid">
+      <button class="choice" id="customerBtn" onclick="showLogin('customer',this)">
+        <div class="ico">👤</div><h3>Login as Customer</h3><p>Submit a garbage request, upload a photo, add your location and track the service.</p><span class="tap">CLICK TO CONTINUE →</span>
+      </button>
+      <button class="choice" id="managerBtn" onclick="showLogin('manager',this)">
+        <div class="ico">🧑‍💼</div><h3>Login as Manager</h3><p>View customer requests, plan visits, update status and see payment records.</p><span class="tap">CLICK TO CONTINUE →</span>
+      </button>
+      <button class="choice" id="signupBtn" onclick="showSignup(this)">
+        <div class="ico">✨</div><h3>Create Account</h3><p>Create a customer account in a few seconds and start submitting requests.</p><span class="tap">CLICK TO CONTINUE →</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<section id="auth" class="screen hidden">
+  <div class="card form">
+    <h2 id="authTitle">Customer Login</h2>
+    <p class="sub" id="authSub">Sign in to manage your garbage collection requests.</p>
+    <div class="notice" id="managerNotice" style="display:none">Manager demo account: <b>manager@garbagecollector.local</b> / <b>Manager@123</b></div>
+    <label>Email</label><input id="email" type="email" placeholder="you@example.com">
+    <label>Password</label><input id="password" type="password" placeholder="••••••••">
+    <div class="actions"><button class="btn btn-blue" id="loginAction" onclick="login()">Login</button><button class="btn btn-outline" onclick="goHome()">Back</button></div>
+    <div id="authMsg"></div>
+  </div>
+</section>
+
+<section id="signup" class="screen hidden">
+  <div class="card form">
+    <h2>Create Customer Account</h2>
+    <p class="sub">Your account lets you submit requests and track their progress.</p>
+    <label>Full name</label><input id="sname" placeholder="Your name">
+    <label>Email</label><input id="semail" type="email" placeholder="you@example.com">
+    <label>Password</label><input id="spass" type="password" placeholder="Create a password">
+    <div class="actions"><button class="btn btn-blue" id="createAction" onclick="signup()">Create Account</button><button class="btn btn-outline" onclick="goHome()">Back</button></div>
+    <div id="signupMsg"></div>
+  </div>
+</section>
+
+<section id="dashboard" class="screen hidden">
+  <div class="dashboard">
+    <aside class="sidebar">
+      <div class="userbox"><b id="userName">User</b><small id="userEmail"></small></div>
+      <button class="navbtn active" onclick="showDashTab('overview',this)">🏠 Overview</button>
+      <button class="navbtn" id="newRequestNav" onclick="showDashTab('new',this)">🗑️ New Request</button>
+      <button class="navbtn" onclick="showDashTab('payments',this)">💳 Payments</button>
+      <button class="navbtn" onclick="showDashTab('requests',this)">📋 My Requests</button>
+      <button class="navbtn" id="managerRequestsNav" onclick="showDashTab('managerRequests',this)">🧑‍💼 All Requests</button>
+    </aside>
+
+    <div class="content">
+      <div id="tab-overview">
+        <h2 class="section-title" id="dashTitle">Welcome</h2>
+        <p class="sub" id="dashSub">Your clean city dashboard.</p>
+        <div class="statgrid">
+          <div class="stat"><b id="stat1">0</b><span>Total requests</span></div>
+          <div class="stat"><b id="stat2">0</b><span>New / active</span></div>
+          <div class="stat"><b id="stat3">₹0</b><span>Payments</span></div>
+        </div>
+        <div class="card">
+          <h3 style="font-family:Poppins;margin-top:0">♻ How it works</h3>
+          <p class="sub" style="margin-bottom:0">Create a request → add location and photo → submit → manager plans the visit → pay the service amount → follow the request until completion.</p>
+        </div>
+      </div>
+
+      <div id="tab-new" class="hidden">
+        <div class="card">
+          <h2 class="section-title">New Garbage Request</h2><p class="sub">Tell us what needs to be collected.</p>
+          <div class="row"><div><label>Problem</label><input id="problem" placeholder="e.g. Garbage not collected"></div><div><label>Location</label><input id="location" placeholder="House / street / area"></div></div>
+          <label>Description</label><textarea id="description" placeholder="Describe the issue..."></textarea>
+          <div class="row"><div><label>Service amount (₹)</label><input id="amount" type="number" min="0" placeholder="Optional"></div><div><label>Photos (up to 6)</label><input id="photoInput" type="file" accept="image/*" multiple></div></div>
+          <div class="actions"><button class="btn btn-blue" id="submitRequestBtn" onclick="submitRequest()">Submit Request</button></div>
+          <div id="requestMsg"></div>
+        </div>
+      </div>
+
+      <div id="tab-requests" class="hidden"><h2 class="section-title">My Requests</h2><p class="sub">Track your submitted complaints and payment status.</p><div id="myRequests" class="requests"></div></div>
+      <div id="tab-managerRequests" class="hidden"><h2 class="section-title">Customer Requests</h2><p class="sub">Manage requests, visits and payment information.</p><div id="allRequests" class="requests"></div></div>
+      <div id="tab-payments" class="hidden"><h2 class="section-title">Payments</h2><p class="sub">Choose a payment method and pay the amount assigned to your request.</p><div id="paymentsArea"></div></div>
+    </div>
+  </div>
+</section>
+
+<div id="lightbox" class="lightbox hidden" onclick="this.classList.add('hidden')"><img id="lbImg" alt=""></div>
+<div class="footer">Garbage Collector • Smart Waste Service • Version 2.0</div>
+</main>
+</div>
+
+<script>
+let user=null, role=null, requests=[], selectedPayMethod='UPI', apiBase='';
+
+const $=id=>document.getElementById(id);
+const show=id=>$(id).classList.remove('hidden');
+const hide=id=>$(id).classList.add('hidden');
+
+function setActive(el){document.querySelectorAll('.choice').forEach(x=>x.classList.remove('active')); if(el)el.classList.add('active')}
+function goHome(){['auth','signup','dashboard'].forEach(hide);show('home');$('authMsg').innerHTML='';$('signupMsg').innerHTML=''}
+function showLogin(r,el){setActive(el);role=r;hide('home');hide('signup');show('auth');$('authTitle').textContent=r==='manager'?'Manager Login':'Customer Login';$('authSub').textContent=r==='manager'?'Access customer requests, visits and payments.':'Sign in to manage your garbage collection requests.';$('managerNotice').style.display=r==='manager'?'block':'none'}
+function showSignup(el){setActive(el);role='customer';hide('home');hide('auth');show('signup')}
+async function api(path,method='GET',body=null){const base=(await window.gc.serverInfo()).api;apiBase=base;const opt={method,headers:{'Content-Type':'application/json'}};if(body)opt.body=JSON.stringify(body);const r=await fetch(base+path,opt);const d=await r.json();if(!r.ok)throw new Error(d.error||'Something went wrong');return d}
+
+function buttonFlash(id){const b=$(id);if(!b)return;b.classList.add('active');setTimeout(()=>b.classList.remove('active'),450)}
+
+async function login(){
+ buttonFlash('loginAction');
+ try{const d=await api('/api/login','POST',{email:$('email').value,password:$('password').value,role});user=d.user;openDashboard()}
+ catch(e){$('authMsg').innerHTML='<div class="error">'+e.message+'</div>'}
+}
+async function signup(){
+ buttonFlash('createAction');
+ try{const d=await api('/api/signup','POST',{name:$('sname').value,email:$('semail').value,password:$('spass').value});user=d.user;openDashboard()}
+ catch(e){$('signupMsg').innerHTML='<div class="error">'+e.message+'</div>'}
+}
+async function openDashboard(){
+ hide('home');hide('auth');hide('signup');show('dashboard');show('logoutTop');
+ $('userName').textContent=user.name; $('userEmail').textContent=user.email;
+ const manager=user.role==='manager';
+ $('newRequestNav').classList.toggle('hidden',manager);
+ $('managerRequestsNav').classList.toggle('hidden',!manager);
+ $('dashTitle').textContent=manager?'Manager Dashboard':'Welcome, '+user.name.split(' ')[0];
+ $('dashSub').textContent=manager?'Monitor requests, visits and payments.':'Keep your garbage collection requests in one place.';
+ await loadRequests();showDashTab('overview',document.querySelector('.navbtn'));
+}
+$('logoutTop').onclick=()=>{user=null;role=null;hide('logoutTop');goHome()}
+
+async function loadRequests(){const d=await api('/api/requests');requests=d.requests||[];renderStats();renderMy();renderAll();renderPayments()}
+function renderStats(){
+ const mine=user?.role==='manager'?requests:requests.filter(r=>r.customerId===user.id);
+ $('stat1').textContent=mine.length;
+ $('stat2').textContent=mine.filter(r=>r.status!=='Completed').length;
+ $('stat3').textContent='₹'+mine.reduce((s,r)=>s+(Number(r.amount)||0),0);
+}
+function showDashTab(tab,el){
+ ['overview','new','requests','managerRequests','payments'].forEach(x=>hide('tab-'+x));show('tab-'+tab);
+ document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');
+}
+function renderMy(){
+ const mine=requests.filter(r=>r.customerId===user?.id);
+ $('myRequests').innerHTML=mine.length?mine.map(cardHtml).join(''):'<div class="empty">No requests yet. Create your first request from <b>New Request</b>.</div>';
+}
+function cardHtml(r){
+ return `<div class="request"><div class="request-head"><div><h3>${esc(r.problem)}</h3><div class="meta">📍 ${esc(r.location)} · ${new Date(r.createdAt).toLocaleString()}</div></div><span class="status">${esc(r.status)}</span></div><p>${esc(r.description||'No description')}</p>${gallery('Your photos',r.photos)}${gallery('Work completed - photos from our team',r.afterPhotos)}<div class="meta"><span>Customer: ${esc(r.customerName)}</span><span>Payment: <b class="${r.paymentStatus==='Paid'?'status paid':'status pending'}">${esc(r.paymentStatus||'Pending')}</b></span>${r.amount?'<span>Amount: ₹'+Number(r.amount).toLocaleString()+'</span>':''}</div></div>`
+}
+function gallery(title,list){
+ if(!list||!list.length)return '';
+ return `<div class="photo-block"><div class="photo-title">${title}</div><div class="photos">${list.map(u=>`<img src="${esc(apiBase+u)}" alt="photo" onclick="openPhoto(this.src)">`).join('')}</div></div>`
+}
+function openPhoto(src){$('lbImg').src=src;$('lightbox').classList.remove('hidden')}
+function fileToDataUrl(f){
+ return new Promise((res,rej)=>{
+  const fr=new FileReader();
+  fr.onerror=()=>rej(new Error('Could not read the photo'));
+  fr.onload=()=>{
+   const img=new Image();
+   img.onerror=()=>rej(new Error('"'+f.name+'" is not a valid image'));
+   img.onload=()=>{
+    const s=Math.min(1,1280/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    res(c.toDataURL('image/jpeg',0.82));
+   };
+   img.src=fr.result;
+  };
+  fr.readAsDataURL(f);
+ })
+}
+function managerActions(r){
+ if(r.status==='New')return `<div class="actions"><button class="btn btn-blue" onclick="startVisit('${r.id}')">Visit</button></div>`;
+ if(r.status==='Visit Planned'){
+  const hasAfter=(r.afterPhotos||[]).length>0;
+  return `<div class="upload-box"><b>📷 Upload your work photo</b><p class="sub">After finishing the work, upload your photo here. The Complete option appears only after a photo is uploaded.</p><div class="upload-row"><input type="file" id="after-${r.id}" accept="image/*" multiple><button class="btn btn-blue" onclick="uploadAfter('${r.id}')">Upload Photo</button></div><div id="amsg-${r.id}"></div></div>`+
+   (hasAfter?`<div class="actions"><button class="btn btn-primary" onclick="completeRequest('${r.id}')">✔ Complete</button></div>`:'');
+ }
+ return `<div class="success">✔ Work completed${r.completedAt?' · '+new Date(r.completedAt).toLocaleString():''}</div>`;
+}
+function renderAll(){
+ const box=$('allRequests');if(user?.role!=='manager')return;
+ box.innerHTML=requests.length?requests.map(r=>`<div class="request"><div class="request-head"><div><h3>${esc(r.problem)}</h3><div class="meta">👤 ${esc(r.customerName)} · ${esc(r.customerEmail)} · 📍 ${esc(r.location)}</div></div><span class="status">${esc(r.status)}</span></div><p>${esc(r.description||'No description')}</p>${(r.photos&&r.photos.length)?gallery('Customer photos',r.photos):'<div class="nophoto">Customer did not attach a photo.</div>'}${gallery('Your work photos',r.afterPhotos)}<div class="meta"><span>Payment: ${esc(r.paymentStatus||'Pending')}</span><span>Amount: ₹${Number(r.amount||0).toLocaleString()}</span>${r.visitAt?'<span>Visit: '+new Date(r.visitAt).toLocaleString()+'</span>':''}</div>${managerActions(r)}</div>`).join(''):'<div class="empty">No customer requests yet.</div>';
+}
+async function startVisit(id){try{await api('/api/request/'+id,'POST',{status:'Visit Planned'});await loadRequests()}catch(e){alert(e.message)}}
+async function completeRequest(id){try{await api('/api/request/'+id,'POST',{status:'Completed'});await loadRequests()}catch(e){alert(e.message)}}
+async function uploadAfter(id){
+ const input=$('after-'+id),msg=$('amsg-'+id),files=[...input.files];
+ if(!files.length){msg.innerHTML='<div class="error">Please choose a photo first.</div>';return}
+ try{
+  msg.innerHTML='<div class="notice" style="margin:12px 0 0">Uploading…</div>';
+  const photos=await Promise.all(files.slice(0,6).map(fileToDataUrl));
+  await api('/api/request/'+id+'/after-photos','POST',{photos});
+  await loadRequests();
+ }catch(e){msg.innerHTML='<div class="error">'+esc(e.message)+'</div>'}
+}
+function renderPayments(){
+ const mine=requests.filter(r=>r.customerId===user?.id);
+ if(user?.role==='manager'){$('paymentsArea').innerHTML='<div class="card"><h3 style="font-family:Poppins;margin-top:0">💳 Payment Overview</h3><p class="sub">Payment information is shown on each customer request. Paid requests are marked automatically.</p>'+requests.filter(r=>r.paymentStatus==='Paid').map(r=>`<div class="meta" style="padding:9px 0;border-bottom:1px solid #eef2ef"><b>${esc(r.customerName)}</b> · ${esc(r.problem)} · ₹${Number(r.amount||0).toLocaleString()} · <span class="status paid">Paid</span></div>`).join('')+'</div>';return}
+ const unpaid=mine.filter(r=>r.paymentStatus!=='Paid' && Number(r.amount)>0);
+ $('paymentsArea').innerHTML=unpaid.length?unpaid.map(r=>`<div class="payment-box"><h4>${esc(r.problem)}</h4><p class="sub">Amount due: <b>₹${Number(r.amount).toLocaleString()}</b></p><div class="payment-options"><button class="pay-option selected" onclick="selectPay(this,'UPI')">UPI</button><button class="pay-option" onclick="selectPay(this,'Card')">Card</button><button class="pay-option" onclick="selectPay(this,'Net Banking')">Net Banking</button></div><div class="actions"><button class="btn btn-blue" onclick="pay('${r.id}',${Number(r.amount)})">Pay Now</button></div><div style="font-size:11px;color:#7c8b85;margin-top:9px">Demo payment screen — connect Razorpay/Cashfree credentials for live payments.</div></div>`).join(''):'<div class="empty">No pending payment. If a manager assigns a service amount, it will appear here.</div>';
+}
+function selectPay(el,m){document.querySelectorAll('.pay-option').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');selectedPayMethod=m}
+async function pay(id,amount){
+ if(!confirm('Confirm payment of ₹'+amount+' using '+selectedPayMethod+'?'))return;
+ await api('/api/payment','POST',{requestId:id,amount,method:selectedPayMethod});alert('Payment successful!');await loadRequests();showDashTab('payments',document.querySelectorAll('.navbtn')[2])
+}
+async function submitRequest(){
+ buttonFlash('submitRequestBtn');
+ try{
+  const photos=await Promise.all([...$('photoInput').files].slice(0,6).map(fileToDataUrl));
+  await api('/api/request','POST',{customerId:user.id,customerName:user.name,customerEmail:user.email,problem:$('problem').value,location:$('location').value,description:$('description').value,photos,amount:Number($('amount').value||0)});
+  $('requestMsg').innerHTML='<div class="success">Request submitted successfully. You can track it in My Requests.</div>';
+  ['problem','location','description','amount','photoInput'].forEach(id=>$(id).value='');await loadRequests();
+ }catch(e){$('requestMsg').innerHTML='<div class="error">'+e.message+'</div>'}
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+goHome();
+</script>
+</body>
+</html>
